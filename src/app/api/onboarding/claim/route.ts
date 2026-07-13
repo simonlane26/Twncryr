@@ -1,9 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { getResend } from '@/lib/resend'
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
@@ -44,11 +42,9 @@ export async function POST(req: NextRequest) {
     data: { businessId, clerkUserId: userId, name: claimantName, email: claimantEmail, role: claimantRole ?? null, status: 'PENDING' },
   })
 
-  const approveUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/claims/${claim.id}/approve?secret=${process.env.ADMIN_SECRET}`
-  const rejectUrl  = `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/claims/${claim.id}/reject?secret=${process.env.ADMIN_SECRET}`
-  const adminUrl   = `${process.env.NEXT_PUBLIC_APP_URL}/admin/claims`
+  const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/claims`
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'Twncryr <noreply@twncryr.co.uk>',
     to: process.env.ADMIN_EMAIL!,
     subject: `New claim: ${businessName} — ${business.town.name}`,
@@ -64,14 +60,13 @@ export async function POST(req: NextRequest) {
           <tr><td style="padding:8px 0;color:#666;font-size:13px">Role</td><td style="padding:8px 0;font-size:13px">${claimantRole ?? '—'}</td></tr>
           <tr><td style="padding:8px 0;color:#666;font-size:13px">Phone</td><td style="padding:8px 0;font-size:13px">${claimantPhone ?? '—'}</td></tr>
         </table>
-        <a href="${approveUrl}" style="background:#085041;color:#E1F5EE;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;display:inline-block;margin-right:12px">✓ Approve</a>
-        <a href="${rejectUrl}" style="background:#f5f5f5;color:#333;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;display:inline-block">✗ Reject</a>
-        <p style="font-size:12px;color:#999;margin-top:24px">Manage all claims at <a href="${adminUrl}">${adminUrl}</a></p>
+        <a href="${adminUrl}" style="background:#085041;color:#E1F5EE;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;display:inline-block">Review claim →</a>
+        <p style="font-size:12px;color:#999;margin-top:24px">Sign in at <a href="${adminUrl}">${adminUrl}</a> to approve or reject.</p>
       </div>
     `,
   })
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'Twncryr <ignistech999@gmail.com>',
     to: claimantEmail,
     subject: `We've received your claim — ${businessName}`,

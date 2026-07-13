@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { getResend } from '@/lib/resend'
 
 export async function GET(req: NextRequest) {
   if (req.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -29,7 +27,7 @@ export async function GET(req: NextRequest) {
   for (const biz of businesses) {
     if (!biz.email) continue
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from:    'Twncryr <noreply@twncryr.co.uk>',
       to:      biz.email,
       subject: `Your week on Twncryr — ${biz.town.name}`,

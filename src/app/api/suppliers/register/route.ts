@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { getResend } from '@/lib/resend'
 import { z } from 'zod'
 import { esc } from '@/lib/email'
 import { rateLimitIP } from '@/lib/ratelimit'
 import { CollectiveCategory } from '@prisma/client'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 const schema = z.object({
   companyName:  z.string().min(1).max(100),
@@ -61,7 +59,7 @@ export async function POST(req: NextRequest) {
   const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/suppliers`
 
   // Email you (admin) to review
-  await resend.emails.send({
+  await getResend().emails.send({
     from:    'Twncryr <noreply@twncryr.co.uk>',
     to:      process.env.ADMIN_EMAIL!,
     subject: `New supplier application — ${parsed.data.companyName} (${parsed.data.category})`,
@@ -87,7 +85,7 @@ export async function POST(req: NextRequest) {
   })
 
   // Email the supplier confirming receipt
-  await resend.emails.send({
+  await getResend().emails.send({
     from:    'Twncryr <partners@twncryr.co.uk>',
     to:      parsed.data.email,
     subject: `Application received — Twncryr Partner Programme`,

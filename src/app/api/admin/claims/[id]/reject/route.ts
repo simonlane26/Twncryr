@@ -1,10 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { getResend } from '@/lib/resend'
 import { isAdminUser } from '@/lib/admin'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(
   req: NextRequest,
@@ -31,7 +29,7 @@ export async function POST(
     data: { status: 'REJECTED' },
   })
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'Twncryr <noreply@twncryr.co.uk>',
     to: claim.email,
     subject: `Update on your claim — ${claim.business.name}`,

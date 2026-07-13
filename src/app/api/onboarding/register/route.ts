@@ -1,12 +1,10 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { getResend } from '@/lib/resend'
 import { z } from 'zod'
 import { BusinessCategory } from '@prisma/client'
 import { esc } from '@/lib/email'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 const registerSchema = z.object({
   businessName:        z.string().min(1).max(120),
@@ -86,7 +84,7 @@ export async function POST(req: NextRequest) {
 
   const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/claims`
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'Twncryr <noreply@twncryr.co.uk>',
     to: process.env.ADMIN_EMAIL!,
     subject: `New registration: ${businessName} — ${town.name}`,
@@ -112,7 +110,7 @@ export async function POST(req: NextRequest) {
     `,
   })
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'Twncryr <ignistech999@gmail.com>',
     to: claimantEmail,
     subject: `We've received your registration — ${businessName}`,

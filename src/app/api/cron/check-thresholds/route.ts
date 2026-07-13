@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
+import { getResend } from '@/lib/resend'
 
 export async function GET(req: NextRequest) {
   if (req.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -50,7 +48,7 @@ export async function GET(req: NextRequest) {
       const count    = interest._count._all
       const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/suppliers?secret=${process.env.ADMIN_SECRET}`
 
-      await resend.emails.send({
+      await getResend().emails.send({
         from:    'Twncryr <partners@twncryr.co.uk>',
         to:      supplier.email,
         subject: `${count} businesses in ${townName} want ${supplier.category.toLowerCase().replace(/_/g, ' ')} — submit a proposal`,

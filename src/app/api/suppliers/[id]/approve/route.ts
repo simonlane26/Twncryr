@@ -1,10 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Resend } from 'resend'
+import { getResend } from '@/lib/resend'
 import { isAdminUser } from '@/lib/admin'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(
   req: NextRequest,
@@ -24,7 +22,7 @@ export async function POST(
 
   await prisma.supplier.update({ where: { id }, data: { status: 'APPROVED' } })
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'Twncryr <partners@twncryr.co.uk>',
     to: supplier.email,
     subject: `You're approved — Twncryr Supplier Partner`,
