@@ -20,6 +20,11 @@ export async function POST(
   const post = await prisma.communityPost.findUnique({ where: { id: communityPostId } })
   if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
 
+  // Prevent cross-town replies — business must be in the same town as the post
+  if (post.townId !== business.townId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const body = await req.json()
   const parsed = schema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })

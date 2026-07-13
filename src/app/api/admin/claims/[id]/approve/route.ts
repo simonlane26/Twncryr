@@ -1,19 +1,19 @@
+import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { clerkClient } from '@clerk/nextjs/server'
 import { Resend } from 'resend'
-import { redirect } from 'next/navigation'
+import { isAdminUser } from '@/lib/admin'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function GET(
+export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const secret = req.nextUrl.searchParams.get('secret')
-  if (secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+  if (!await isAdminUser(userId)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
 
@@ -27,7 +27,6 @@ export async function GET(
     return NextResponse.json({ error: 'Claim is not pending' }, { status: 409 })
   }
 
-  // Create Clerk org and link business
   const client = await clerkClient()
   const org = await client.organizations.createOrganization({
     name: claim.business.name,
@@ -55,7 +54,7 @@ export async function GET(
   ])
 
   await resend.emails.send({
-    from: 'Twncryr <ignistech999@gmail.com>',
+    from: 'Twncryr <noreply@twncryr.co.uk>',
     to: claim.email,
     subject: `You're approved — ${claim.business.name} is now live on Twncryr`,
     html: `
@@ -74,6 +73,7 @@ export async function GET(
   })
 
   return NextResponse.redirect(
-    new URL(`/admin/claims?secret=${secret}&approved=${claim.business.name}`, req.url)
+    new URL(`/admin/claims?approved=${encodeURIComponent(claim.business.name)}`, req.url),
+    303
   )
 }

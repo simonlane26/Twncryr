@@ -2,6 +2,17 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+
+const grantsSchema = z.object({
+  rateableValue: z.string().max(20),
+  propertyType:  z.string().max(100),
+  employees:     z.string().max(20),
+  turnover:      z.string().max(20),
+  monthsTrading: z.string().max(20),
+  isRural:       z.boolean(),
+  context:       z.string().max(500).optional(),
+})
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -50,8 +61,9 @@ export async function POST(req: NextRequest) {
   })
   if (!business) return new Response('Business not found', { status: 404 })
 
-  const { rateableValue, propertyType, employees, turnover, monthsTrading, isRural, context } =
-    await req.json()
+  const parsed = grantsSchema.safeParse(await req.json())
+  if (!parsed.success) return new Response('Invalid input', { status: 422 })
+  const { rateableValue, propertyType, employees, turnover, monthsTrading, isRural, context } = parsed.data
 
   const rv = parseInt(rateableValue, 10) || 0
   const smallMultiplier = 0.499

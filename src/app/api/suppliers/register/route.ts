@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { z } from 'zod'
 import { esc } from '@/lib/email'
+import { rateLimitIP } from '@/lib/ratelimit'
+import { CollectiveCategory } from '@prisma/client'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -12,13 +14,17 @@ const schema = z.object({
   email:        z.string().email(),
   phone:        z.string().optional(),
   website:      z.string().optional(),
-  category:     z.string(),
+  category:     z.nativeEnum(CollectiveCategory),
   description:  z.string().min(10).max(1000),
   offerSummary: z.string().min(5).max(200),
   minGroupSize: z.number().int().min(3).max(50),
 })
 
 export async function POST(req: NextRequest) {
+  if (!rateLimitIP(req, 5)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const body = await req.json()
   const parsed = schema.safeParse(body)
 
@@ -39,11 +45,20 @@ export async function POST(req: NextRequest) {
   }
 
   const supplier = await prisma.supplier.create({
-    data: parsed.data as any,
+    data: {
+      companyName:  parsed.data.companyName,
+      contactName:  parsed.data.contactName,
+      email:        parsed.data.email,
+      phone:        parsed.data.phone ?? null,
+      website:      parsed.data.website ?? null,
+      category:     parsed.data.category,
+      description:  parsed.data.description,
+      offerSummary: parsed.data.offerSummary,
+      minGroupSize: parsed.data.minGroupSize,
+    },
   })
 
-  const approveUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/suppliers/${supplier.id}/approve?secret=${process.env.ADMIN_SECRET}`
-  const adminUrl   = `${process.env.NEXT_PUBLIC_APP_URL}/admin/suppliers?secret=${process.env.ADMIN_SECRET}`
+  const adminUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/suppliers`
 
   // Email you (admin) to review
   await resend.emails.send({
@@ -65,8 +80,7 @@ export async function POST(req: NextRequest) {
         </table>
         <p style="font-size:13px;color:#444;background:#f5f5f5;padding:12px;border-radius:8px;line-height:1.6">${esc(parsed.data.description)}</p>
         <div style="margin-top:20px;display:flex;gap:10px">
-          <a href="${approveUrl}" style="background:#085041;color:#E1F5EE;padding:11px 22px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;display:inline-block">✓ Approve supplier</a>
-          <a href="${adminUrl}" style="background:#f5f5f5;color:#333;padding:11px 22px;border-radius:8px;text-decoration:none;font-size:13px;display:inline-block">View all suppliers</a>
+          <a href="${adminUrl}" style="background:#085041;color:#E1F5EE;padding:11px 22px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;display:inline-block">Review application →</a>
         </div>
       </div>
     `,

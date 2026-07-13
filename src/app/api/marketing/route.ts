@@ -2,6 +2,18 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+import { rateLimitOrg } from '@/lib/ratelimit'
+
+const VALID_TYPES = ['instagram','facebook','google','newsletter','campaign','ideas','seasonal','bio'] as const
+const VALID_TONES = ['warm','professional','playful','urgent'] as const
+
+const marketingSchema = z.object({
+  contentType: z.enum(VALID_TYPES),
+  tone:        z.enum(VALID_TONES),
+  focus:       z.string().min(1).max(200),
+  specifics:   z.string().max(500).optional(),
+})
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -29,6 +41,10 @@ export async function POST(req: NextRequest) {
   const { orgId } = await auth()
   if (!orgId) return new Response('Unauthorised', { status: 401 })
 
+  if (!rateLimitOrg(orgId, 20)) {
+    return new Response('Too many requests', { status: 429 })
+  }
+
   const business = await prisma.business.findUnique({
     where: { clerkOrgId: orgId },
     include: { town: true },
@@ -36,14 +52,12 @@ export async function POST(req: NextRequest) {
 
   if (!business) return new Response('Business not found', { status: 404 })
 
-  const { contentType, tone, focus, specifics } = await req.json()
+  const parsed = marketingSchema.safeParse(await req.json())
+  if (!parsed.success) return new Response('Invalid input', { status: 422 })
+  const { contentType, tone, focus, specifics } = parsed.data
 
-  if (!contentType || !focus) {
-    return new Response('contentType and focus are required', { status: 400 })
-  }
-
-  const instruction = TYPE_INSTRUCTIONS[contentType] ?? TYPE_INSTRUCTIONS.instagram
-  const toneGuide   = TONE_GUIDES[tone] ?? TONE_GUIDES.warm
+  const instruction = TYPE_INSTRUCTIONS[contentType]
+  const toneGuide   = TONE_GUIDES[tone]
 
   const systemPrompt = `You are an expert marketing copywriter specialising in UK independent high street businesses. You understand what resonates with British local audiences — warm, community-focused, authentic. Never corporate. Never American in tone.
 

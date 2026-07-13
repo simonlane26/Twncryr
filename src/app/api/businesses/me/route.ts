@@ -8,7 +8,14 @@ export async function GET() {
 
   const business = await prisma.business.findUnique({
     where: { clerkOrgId: orgId },
-    include: { town: true },
+    select: {
+      id: true, name: true, slug: true, category: true,
+      tagline: true, description: true, address: true, postcode: true,
+      phone: true, email: true, website: true, logo: true, photos: true,
+      claimed: true, verified: true, active: true,
+      clerkOrgId: true, townId: true,
+      town: { select: { id: true, name: true, slug: true, county: true } },
+    },
   })
 
   return NextResponse.json({ business })

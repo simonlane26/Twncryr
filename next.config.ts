@@ -1,19 +1,44 @@
 import type { NextConfig } from "next";
 
+const csp = [
+  "default-src 'self'",
+  // Next.js and Clerk inject inline scripts; unsafe-inline is required until nonce support is added
+  "script-src 'self' 'unsafe-inline'",
+  // Inline styles used throughout components
+  "style-src 'self' 'unsafe-inline'",
+  // Images: self, data URIs, UploadThing CDN, Clerk avatar CDN
+  "img-src 'self' data: blob: https://utfs.io https://img.clerk.com https://*.uploadthing.com",
+  // External connections: Clerk APIs, Pusher WebSocket, UploadThing API
+  [
+    "connect-src 'self'",
+    "https://*.clerk.com",
+    "https://*.clerk.accounts.dev",
+    "wss://*.pusher.com",
+    "https://*.pusher.com",
+    "wss://*.pusherapp.com",
+    "https://sockjs-eu.pusher.com",
+    "https://api.uploadthing.com",
+    "https://utfs.io",
+  ].join(' '),
+  "font-src 'self'",
+  // Clerk hosted account pages may be iframed
+  "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev",
+  // Block Flash/Java plugins
+  "object-src 'none'",
+  // Prevent base tag hijacking
+  "base-uri 'self'",
+  // Only allow form submissions to same origin
+  "form-action 'self'",
+].join('; ')
+
 const securityHeaders = [
-  // Prevent MIME-type sniffing
+  { key: 'Content-Security-Policy', value: csp },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  // Disallow framing except by same origin (clickjacking)
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-  // Force HTTPS for 2 years, include subdomains
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-  // Stop sending full URL in Referer (protects admin secret in headers)
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  // Disable camera/mic/geo unless explicitly used
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
-  // Block XSS via browser heuristics (legacy browsers)
   { key: 'X-XSS-Protection', value: '1; mode=block' },
-  // DNS prefetch opt-in
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
 ]
 

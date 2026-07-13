@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { rateLimitIP } from '@/lib/ratelimit'
 
 const enquirySchema = z.object({
   businessId: z.string().cuid(),
@@ -13,6 +14,10 @@ const enquirySchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  if (!rateLimitIP(req)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const body = await req.json()
   const parsed = enquirySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 })

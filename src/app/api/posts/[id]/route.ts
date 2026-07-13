@@ -5,10 +5,12 @@ import { pusherServer, townChannel, PUSHER_EVENTS } from '@/lib/pusher-server'
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { orgId } = await auth()
   if (!orgId) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
+  const { id } = await params
 
   const business = await prisma.business.findUnique({
     where: { clerkOrgId: orgId },
@@ -17,20 +19,17 @@ export async function DELETE(
 
   if (!business) return NextResponse.json({ error: 'Business not found' }, { status: 404 })
 
-  // Verify this post belongs to this business
   const post = await prisma.post.findFirst({
-    where: { id: params.id, businessId: business.id },
+    where: { id, businessId: business.id },
   })
 
   if (!post) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
 
-  // Mark inactive rather than hard delete — preserves enquiry history
   await prisma.post.update({
-    where: { id: params.id },
+    where: { id },
     data: { active: false },
   })
 
-  // Fire Pusher event so consumer feed removes it immediately
   await pusherServer.trigger(
     townChannel(business.town.slug),
     PUSHER_EVENTS.POST_EXPIRED,

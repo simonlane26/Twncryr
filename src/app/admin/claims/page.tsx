@@ -1,11 +1,10 @@
-import { prisma } from '@/lib/prisma'
+import { currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
+import { prisma } from '@/lib/prisma'
 
 async function getAllClaims() {
   return prisma.claimRequest.findMany({
-    include: {
-      business: { include: { town: true } },
-    },
+    include: { business: { include: { town: true } } },
     orderBy: { createdAt: 'desc' },
   })
 }
@@ -19,15 +18,14 @@ const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
 export default async function AdminClaimsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ secret?: string }>
+  searchParams: Promise<{ approved?: string }>
 }) {
-  const { secret } = await searchParams
+  const user = await currentUser()
+  const email = user?.emailAddresses.find(e => e.id === user.primaryEmailAddressId)?.emailAddress
+  if (email !== process.env.ADMIN_EMAIL) redirect('/sign-in')
 
-  if (secret !== process.env.ADMIN_SECRET) {
-    redirect('/')
-  }
-
-  const claims = await getAllClaims()
+  const { approved } = await searchParams
+  const claims  = await getAllClaims()
   const pending  = claims.filter(c => c.status === 'PENDING')
   const resolved = claims.filter(c => c.status !== 'PENDING')
 
@@ -38,6 +36,12 @@ export default async function AdminClaimsPage({
         {pending.length} pending · {resolved.length} resolved
       </p>
 
+      {approved && (
+        <div style={{ background: '#E1F5EE', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', fontSize: '14px', color: '#085041' }}>
+          ✓ <strong>{approved}</strong> approved and notified.
+        </div>
+      )}
+
       {pending.length === 0 ? (
         <div style={{ background: '#f5f5f5', borderRadius: '8px', padding: '24px', textAlign: 'center', marginBottom: '32px' }}>
           <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>No pending claims — you're all caught up ✓</p>
@@ -46,7 +50,7 @@ export default async function AdminClaimsPage({
         <>
           <h2 style={{ fontSize: '16px', marginBottom: '12px' }}>Pending ({pending.length})</h2>
           {pending.map(claim => (
-            <ClaimCard key={claim.id} claim={claim} secret={secret!} showActions />
+            <ClaimCard key={claim.id} claim={claim} showActions />
           ))}
         </>
       )}
@@ -57,7 +61,7 @@ export default async function AdminClaimsPage({
             Resolved ({resolved.length})
           </h2>
           {resolved.map(claim => (
-            <ClaimCard key={claim.id} claim={claim} secret={secret!} showActions={false} />
+            <ClaimCard key={claim.id} claim={claim} showActions={false} />
           ))}
         </>
       )}
@@ -65,18 +69,13 @@ export default async function AdminClaimsPage({
   )
 }
 
-function ClaimCard({
-  claim,
-  secret,
-  showActions,
-}: {
-  claim: any
-  secret: string
-  showActions: boolean
-}) {
+function ClaimCard({ claim, showActions }: { claim: any; showActions: boolean }) {
   const statusStyle = STATUS_STYLES[claim.status] ?? STATUS_STYLES.PENDING
-  const approveUrl  = `/api/admin/claims/${claim.id}/approve?secret=${secret}`
-  const rejectUrl   = `/api/admin/claims/${claim.id}/reject?secret=${secret}`
+
+  const btnBase: React.CSSProperties = {
+    padding: '8px 20px', borderRadius: '6px', textDecoration: 'none', fontSize: '13px',
+    cursor: 'pointer', border: 'none', fontFamily: 'sans-serif',
+  }
 
   return (
     <div style={{ border: '1px solid #e5e5e5', borderRadius: '10px', padding: '16px 20px', marginBottom: '12px', background: '#fff' }}>
@@ -107,14 +106,18 @@ function ClaimCard({
       </div>
 
       {showActions && (
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <a href={approveUrl} style={{ background: '#085041', color: '#E1F5EE', padding: '8px 20px', borderRadius: '6px', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>
-            ✓ Approve
-          </a>
-          <a href={rejectUrl} style={{ background: '#f5f5f5', color: '#333', padding: '8px 20px', borderRadius: '6px', textDecoration: 'none', fontSize: '13px' }}>
-            ✗ Reject
-          </a>
-          <a href={`mailto:${claim.email}`} style={{ background: 'transparent', color: '#085041', padding: '8px 20px', borderRadius: '6px', textDecoration: 'none', fontSize: '13px', border: '1px solid #cce8e0' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <form action={`/api/admin/claims/${claim.id}/approve`} method="POST" style={{ display: 'inline' }}>
+            <button type="submit" style={{ ...btnBase, background: '#085041', color: '#E1F5EE', fontWeight: '500' }}>
+              ✓ Approve
+            </button>
+          </form>
+          <form action={`/api/admin/claims/${claim.id}/reject`} method="POST" style={{ display: 'inline' }}>
+            <button type="submit" style={{ ...btnBase, background: '#f5f5f5', color: '#333' }}>
+              ✗ Reject
+            </button>
+          </form>
+          <a href={`mailto:${claim.email}`} style={{ ...btnBase, background: 'transparent', color: '#085041', border: '1px solid #cce8e0', display: 'inline-block', lineHeight: '1.2' }}>
             ✉ Email claimant
           </a>
         </div>

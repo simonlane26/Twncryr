@@ -57,6 +57,11 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // Validate locationId format to prevent URL manipulation (e.g. "locations/12345")
+  if (!/^locations\/\d+$/.test(business.googleLocationId)) {
+    return NextResponse.json({ error: 'Invalid Google location configuration' }, { status: 500 })
+  }
+
   const accessToken = await refreshAccessToken(business.googleRefreshToken)
 
   const postRes = await fetch(
