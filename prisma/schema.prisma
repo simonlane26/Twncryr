@@ -1,0 +1,369 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Town {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  county      String
+  region      String?
+  description String?
+  heroImage   String?
+  active      Boolean    @default(false)
+  launchedAt  DateTime?
+
+  businesses             Business[]
+  communityPosts         CommunityPost[]
+  events                 Event[]
+  collectiveInterests    CollectiveInterest[]
+  supplierProposals      SupplierProposal[]
+  thresholdNotifications ThresholdNotification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("towns")
+}
+
+model Business {
+  id          String          @id @default(cuid())
+  townId      String
+  town        Town            @relation(fields: [townId], references: [id])
+
+  name        String
+  slug        String
+  tagline     String?
+  description String?
+  category    BusinessCategory
+  subCategory String?
+
+  address     String?
+  postcode    String?
+  lat         Float?
+  lng         Float?
+  phone       String?
+  email       String?
+  website     String?
+
+  logo        String?
+  photos      String[]        @default([])
+
+  openingHours Json?
+
+  clerkOrgId  String?         @unique
+
+  googleRefreshToken String?
+  googleAccountId    String?
+  googleLocationId   String?
+
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String?
+  plan                 Plan    @default(FREE)
+  planExpiresAt        DateTime?
+
+  claimed     Boolean         @default(false)
+  verified    Boolean         @default(false)
+  featured    Boolean         @default(false)
+  active      Boolean         @default(true)
+
+  members              BusinessMember[]
+  posts                Post[]
+  communityPosts       CommunityPost[]
+  communityReplies     CommunityReply[]
+  enquiries            Enquiry[]
+  collectiveInterests  CollectiveInterest[]
+  proposalAcceptances  ProposalAcceptance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([townId, slug])
+  @@map("businesses")
+}
+
+model BusinessMember {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  clerkUserId String
+  role       MemberRole @default(MEMBER)
+  createdAt  DateTime @default(now())
+
+  @@unique([businessId, clerkUserId])
+  @@map("business_members")
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  type      PostType
+  title     String
+  body      String
+  image     String?
+
+  tableCount  Int?
+  tableSizes  String[]  @default([])
+
+  discountText String?
+
+  expiresAt DateTime?
+  startsAt  DateTime?
+
+  views     Int @default(0)
+  clicks    Int @default(0)
+
+  active    Boolean  @default(true)
+
+  enquiries Enquiry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("posts")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  townId      String
+  town        Town     @relation(fields: [townId], references: [id])
+  businessId  String?
+
+  title       String
+  description String?
+  location    String?
+  image       String?
+
+  startDate   DateTime
+  endDate     DateTime?
+  allDay      Boolean  @default(true)
+
+  featured    Boolean  @default(false)
+  active      Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@map("events")
+}
+
+model CommunityPost {
+  id         String   @id @default(cuid())
+  townId     String
+  town       Town     @relation(fields: [townId], references: [id])
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  body     String
+  pinned   Boolean @default(false)
+
+  replies  CommunityReply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("community_posts")
+}
+
+model CommunityReply {
+  id              String        @id @default(cuid())
+  communityPostId String
+  communityPost   CommunityPost @relation(fields: [communityPostId], references: [id], onDelete: Cascade)
+  businessId      String
+  business        Business      @relation(fields: [businessId], references: [id])
+  body            String
+
+  createdAt DateTime @default(now())
+
+  @@map("community_replies")
+}
+
+model Enquiry {
+  id         String   @id @default(cuid())
+  postId     String?
+  post       Post?    @relation(fields: [postId], references: [id])
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+
+  name    String
+  email   String
+  phone   String?
+  message String?
+  partySize Int?
+
+  status  EnquiryStatus @default(NEW)
+  read    Boolean       @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("enquiries")
+}
+
+model ClaimRequest {
+  id         String      @id @default(cuid())
+  businessId String
+  clerkUserId String
+  name       String
+  email      String
+  role       String?
+  status     ClaimStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+
+  @@map("claim_requests")
+}
+
+enum BusinessCategory {
+  FOOD_DRINK
+  RETAIL
+  HEALTH_BEAUTY
+  SERVICES
+  ARTS_CULTURE
+  ACCOMMODATION
+  FITNESS
+  EDUCATION
+  OTHER
+}
+
+enum PostType {
+  DEAL
+  TABLE
+  EVENT
+  ANNOUNCEMENT
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum EnquiryStatus {
+  NEW
+  READ
+  REPLIED
+  CLOSED
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CollectiveInterest {
+  id         String   @id @default(cuid())
+  townId     String
+  town       Town     @relation(fields: [townId], references: [id])
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  category   CollectiveCategory
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([townId, businessId, category])
+  @@map("collective_interests")
+}
+
+enum CollectiveCategory {
+  ENERGY
+  CARD_PROCESSING
+  INSURANCE
+  PACKAGING
+  BROADBAND
+  CLEANING_SUPPLIES
+  ACCOUNTING
+  MARKETING_TOOLS
+  OTHER
+}
+
+model Supplier {
+  id           String         @id @default(cuid())
+  companyName  String
+  contactName  String
+  email        String         @unique
+  phone        String?
+  website      String?
+  category     CollectiveCategory
+  description  String
+  offerSummary String
+  minGroupSize Int            @default(5)
+  status       SupplierStatus @default(PENDING)
+
+  proposals              SupplierProposal[]
+  thresholdNotifications ThresholdNotification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("suppliers")
+}
+
+model SupplierProposal {
+  id             String             @id @default(cuid())
+  supplierId     String
+  supplier       Supplier           @relation(fields: [supplierId], references: [id])
+  townId         String
+  town           Town               @relation(fields: [townId], references: [id])
+  category       CollectiveCategory
+  title          String
+  description    String
+  savingEstimate String
+  deadline       DateTime
+  status         ProposalStatus     @default(ACTIVE)
+
+  acceptances ProposalAcceptance[]
+
+  createdAt DateTime @default(now())
+
+  @@map("supplier_proposals")
+}
+
+model ProposalAcceptance {
+  id         String          @id @default(cuid())
+  proposalId String
+  proposal   SupplierProposal @relation(fields: [proposalId], references: [id])
+  businessId String
+  business   Business        @relation(fields: [businessId], references: [id])
+  createdAt  DateTime        @default(now())
+
+  @@unique([proposalId, businessId])
+  @@map("proposal_acceptances")
+}
+
+model ThresholdNotification {
+  id         String             @id @default(cuid())
+  townId     String
+  town       Town               @relation(fields: [townId], references: [id])
+  supplierId String
+  supplier   Supplier           @relation(fields: [supplierId], references: [id])
+  category   CollectiveCategory
+  sentAt     DateTime           @default(now())
+
+  @@unique([townId, supplierId, category])
+  @@map("threshold_notifications")
+}
+
+enum SupplierStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProposalStatus {
+  ACTIVE
+  CLOSED
+  COMPLETED
+}

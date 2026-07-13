@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { clerkClient } from '@clerk/nextjs/server'
+import { Resend } from 'resend'
+import { redirect } from 'next/navigation'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const secret = req.nextUrl.searchParams.get('secret')
+  if (secret !== process.env.ADMIN_SECRET) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { id } = await params
+
+  const claim = await prisma.claimRequest.findUnique({
+    where: { id },
+    include: { business: { include: { town: true } } },
+  })
+
+  if (!claim) return NextResponse.json({ error: 'Claim not found' }, { status: 404 })
+  if (claim.status !== 'PENDING') {
+    return NextResponse.json({ error: 'Claim is not pending' }, { status: 409 })
+  }
+
+  // Create Clerk org and link business
+  const client = await clerkClient()
+  const org = await client.organizations.createOrganization({
+    name: claim.business.name,
+    createdBy: claim.clerkUserId,
+    publicMetadata: {
+      businessId: claim.business.id,
+      townSlug: claim.business.town.slug,
+    },
+  })
+
+  await prisma.$transaction([
+    prisma.business.update({
+      where: { id: claim.business.id },
+      data: { clerkOrgId: org.id, claimed: true, verified: true, active: true },
+    }),
+    prisma.businessMember.upsert({
+      where: { businessId_clerkUserId: { businessId: claim.business.id, clerkUserId: claim.clerkUserId } },
+      create: { businessId: claim.business.id, clerkUserId: claim.clerkUserId, role: 'OWNER' },
+      update: { role: 'OWNER' },
+    }),
+    prisma.claimRequest.update({
+      where: { id },
+      data: { status: 'APPROVED' },
+    }),
+  ])
+
+  await resend.emails.send({
+    from: 'Twncryr <ignistech999@gmail.com>',
+    to: claim.email,
+    subject: `You're approved — ${claim.business.name} is now live on Twncryr`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+        <h2 style="color:#085041">You're approved, ${claim.name}!</h2>
+        <p style="font-size:14px;color:#444;line-height:1.6">
+          Your listing for <strong>${claim.business.name}</strong> on Twncryr is now active.
+          Sign in to your dashboard to start posting deals, last-minute tables and events.
+        </p>
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" style="display:inline-block;margin-top:16px;background:#085041;color:#E1F5EE;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">
+          Go to your dashboard →
+        </a>
+        <p style="font-size:12px;color:#999;margin-top:24px">Questions? Reply to this email.</p>
+      </div>
+    `,
+  })
+
+  return NextResponse.redirect(
+    new URL(`/admin/claims?secret=${secret}&approved=${claim.business.name}`, req.url)
+  )
+}
