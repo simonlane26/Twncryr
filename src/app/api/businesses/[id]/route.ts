@@ -39,8 +39,14 @@ export async function PATCH(
     where: { id },
     data: {
       ...rest,
-      // openingHours is Json type — cast to satisfy Prisma's InputJsonValue
       ...(openingHours !== undefined ? { openingHours: openingHours as object } : {}),
+    },
+    select: {
+      id: true, name: true, slug: true, tagline: true, description: true,
+      category: true, subCategory: true, address: true, postcode: true,
+      phone: true, email: true, website: true, logo: true, photos: true,
+      openingHours: true, claimed: true, verified: true, active: true,
+      createdAt: true, updatedAt: true,
     },
   })
 

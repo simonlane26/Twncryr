@@ -16,6 +16,15 @@ export async function GET(req: NextRequest) {
   const town = req.nextUrl.searchParams.get('town')
   if (!town) return NextResponse.json({ error: 'town is required' }, { status: 400 })
 
+  // Verify requesting business belongs to this town
+  const business = await prisma.business.findUnique({
+    where: { clerkOrgId: orgId },
+    select: { townId: true, town: { select: { slug: true } } },
+  })
+  if (!business || business.town.slug !== town) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const posts = await prisma.communityPost.findMany({
     where: {
       town: { slug: town },

@@ -67,11 +67,8 @@ export async function POST() {
     ])
 
     return NextResponse.json({ orgId: org.id, businessName: business.name })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[dev/setup]', err)
-    return NextResponse.json(
-      { error: err?.message ?? String(err) },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Setup failed' }, { status: 500 })
   }
 }

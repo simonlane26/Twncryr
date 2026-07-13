@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { z } from 'zod'
+import { esc } from '@/lib/email'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -53,16 +54,16 @@ export async function POST(req: NextRequest) {
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
         <h2 style="color:#085041">New supplier application</h2>
         <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
-          <tr><td style="padding:7px 0;color:#666;font-size:13px;width:130px">Company</td><td style="padding:7px 0;font-size:13px;font-weight:500">${parsed.data.companyName}</td></tr>
-          <tr><td style="padding:7px 0;color:#666;font-size:13px">Contact</td><td style="padding:7px 0;font-size:13px">${parsed.data.contactName}</td></tr>
-          <tr><td style="padding:7px 0;color:#666;font-size:13px">Email</td><td style="padding:7px 0;font-size:13px"><a href="mailto:${parsed.data.email}">${parsed.data.email}</a></td></tr>
-          <tr><td style="padding:7px 0;color:#666;font-size:13px">Phone</td><td style="padding:7px 0;font-size:13px">${parsed.data.phone ?? '—'}</td></tr>
-          <tr><td style="padding:7px 0;color:#666;font-size:13px">Website</td><td style="padding:7px 0;font-size:13px">${parsed.data.website ?? '—'}</td></tr>
-          <tr><td style="padding:7px 0;color:#666;font-size:13px;border-top:1px solid #eee">Category</td><td style="padding:7px 0;font-size:13px;border-top:1px solid #eee">${parsed.data.category}</td></tr>
+          <tr><td style="padding:7px 0;color:#666;font-size:13px;width:130px">Company</td><td style="padding:7px 0;font-size:13px;font-weight:500">${esc(parsed.data.companyName)}</td></tr>
+          <tr><td style="padding:7px 0;color:#666;font-size:13px">Contact</td><td style="padding:7px 0;font-size:13px">${esc(parsed.data.contactName)}</td></tr>
+          <tr><td style="padding:7px 0;color:#666;font-size:13px">Email</td><td style="padding:7px 0;font-size:13px"><a href="mailto:${esc(parsed.data.email)}">${esc(parsed.data.email)}</a></td></tr>
+          <tr><td style="padding:7px 0;color:#666;font-size:13px">Phone</td><td style="padding:7px 0;font-size:13px">${esc(parsed.data.phone)}</td></tr>
+          <tr><td style="padding:7px 0;color:#666;font-size:13px">Website</td><td style="padding:7px 0;font-size:13px">${esc(parsed.data.website)}</td></tr>
+          <tr><td style="padding:7px 0;color:#666;font-size:13px;border-top:1px solid #eee">Category</td><td style="padding:7px 0;font-size:13px;border-top:1px solid #eee">${esc(parsed.data.category)}</td></tr>
           <tr><td style="padding:7px 0;color:#666;font-size:13px">Min group size</td><td style="padding:7px 0;font-size:13px">${parsed.data.minGroupSize} businesses</td></tr>
-          <tr><td style="padding:7px 0;color:#666;font-size:13px">Offer summary</td><td style="padding:7px 0;font-size:13px">${parsed.data.offerSummary}</td></tr>
+          <tr><td style="padding:7px 0;color:#666;font-size:13px">Offer summary</td><td style="padding:7px 0;font-size:13px">${esc(parsed.data.offerSummary)}</td></tr>
         </table>
-        <p style="font-size:13px;color:#444;background:#f5f5f5;padding:12px;border-radius:8px;line-height:1.6">${parsed.data.description}</p>
+        <p style="font-size:13px;color:#444;background:#f5f5f5;padding:12px;border-radius:8px;line-height:1.6">${esc(parsed.data.description)}</p>
         <div style="margin-top:20px;display:flex;gap:10px">
           <a href="${approveUrl}" style="background:#085041;color:#E1F5EE;padding:11px 22px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:500;display:inline-block">✓ Approve supplier</a>
           <a href="${adminUrl}" style="background:#f5f5f5;color:#333;padding:11px 22px;border-radius:8px;text-decoration:none;font-size:13px;display:inline-block">View all suppliers</a>

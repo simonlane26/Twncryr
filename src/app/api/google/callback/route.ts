@@ -56,7 +56,13 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const code  = searchParams.get('code')
+  const state = searchParams.get('state')
   const error = searchParams.get('error')
+
+  // Validate state matches the userId we embedded at connect time (CSRF guard)
+  if (state !== userId) {
+    return NextResponse.redirect(new URL('/dashboard?google=invalid', req.url))
+  }
 
   if (error || !code) {
     return NextResponse.redirect(
