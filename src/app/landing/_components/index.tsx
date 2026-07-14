@@ -3,6 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+function townUrl(slug: string): string {
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.twncryr.com')
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/$/, '')
+  return `https://${slug}.${base}`
+}
+
 // ─────────────────────────────────────────────
 // Hero
 // ─────────────────────────────────────────────
@@ -24,7 +32,7 @@ export function LandingHero({ towns }: { towns: { name: string; slug: string }[]
           {towns.map(town => (
             <a
               key={town.slug}
-              href={`https://${town.slug}.twncryr.co.uk`}
+              href={townUrl(town.slug)}
               className="flex items-center gap-2 bg-[#0F6E56] text-[#E1F5EE] text-[14px] font-medium px-6 py-3 rounded-xl no-underline hover:bg-[#085041] transition-colors"
             >
               <i className="ti ti-map-pin text-[15px]" aria-hidden="true" />
@@ -195,7 +203,7 @@ export function TownMap({
       {towns.map(town => (
         <a
           key={town.slug}
-          href={`https://${town.slug}.twncryr.co.uk`}
+          href={townUrl(town.slug)}
           className="flex items-center gap-3 bg-[#E1F5EE] border border-[#5DCAA5] rounded-xl px-4 py-3 max-w-[260px] mx-auto mb-4 no-underline hover:bg-[#0F6E56] group transition-colors"
         >
           <div className="w-9 h-9 rounded-lg bg-[#085041] group-hover:bg-white/20 flex items-center justify-center flex-shrink-0 transition-colors">

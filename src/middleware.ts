@@ -16,10 +16,13 @@ function extractTown(req: NextRequest): string | null {
 
   const parts = host.split('.')
 
-  // twncryr.co.uk → 3 parts (no subdomain)
-  // www.twncryr.co.uk → 4 parts but parts[0] === 'www' (no town subdomain)
-  // nantwich.twncryr.co.uk → 4 parts, parts[0] is the town slug
-  if (parts.length >= 4 && parts[0] !== 'www') {
+  // twncryr.com      → 2 parts (no subdomain)
+  // twncryr.co.uk    → 3 parts, parts[0] === 'twncryr' (no subdomain)
+  // www.twncryr.com  → 3 parts, parts[0] === 'www' (no town)
+  // www.twncryr.co.uk → 4 parts, parts[0] === 'www' (no town)
+  // nantwich.twncryr.com   → 3 parts, parts[0] = town slug
+  // nantwich.twncryr.co.uk → 4 parts, parts[0] = town slug
+  if (parts.length >= 3 && parts[0] !== 'www' && parts[0] !== 'twncryr') {
     return parts[0]
   }
 
