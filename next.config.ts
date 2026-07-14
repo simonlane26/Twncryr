@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const csp = [
   "default-src 'self'",
   // Next.js and Clerk inject inline scripts; unsafe-inline is required until nonce support is added
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' https://clerk.twncryr.com https://*.clerk.com https://*.clerk.accounts.dev",
   // Inline styles used throughout components
   "style-src 'self' 'unsafe-inline'",
   // Images: self, data URIs, UploadThing CDN, Clerk avatar CDN
