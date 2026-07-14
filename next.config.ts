@@ -11,6 +11,7 @@ const csp = [
   // External connections: Clerk APIs, Pusher WebSocket, UploadThing API
   [
     "connect-src 'self'",
+    "https://clerk.twncryr.com",
     "https://*.clerk.com",
     "https://*.clerk.accounts.dev",
     "wss://*.pusher.com",
@@ -20,6 +21,8 @@ const csp = [
     "https://api.uploadthing.com",
     "https://utfs.io",
   ].join(' '),
+  // Clerk spawns Web Workers from blob: URLs for token polling
+  "worker-src blob:",
   "font-src 'self'",
   // Clerk hosted account pages may be iframed
   "frame-src 'self' https://*.clerk.com https://*.clerk.accounts.dev",
