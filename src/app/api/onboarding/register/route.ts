@@ -5,6 +5,7 @@ import { getResend } from '@/lib/resend'
 import { z } from 'zod'
 import { BusinessCategory } from '@prisma/client'
 import { esc } from '@/lib/email'
+import { rateLimitIP } from '@/lib/ratelimit'
 
 const registerSchema = z.object({
   businessName:        z.string().min(1).max(120),
@@ -26,6 +27,9 @@ function slugify(name: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!rateLimitIP(req, 5, 60_000))
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
@@ -116,9 +120,9 @@ export async function POST(req: NextRequest) {
     subject: `We've received your registration — ${businessName}`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#085041">Thanks, ${claimantName}!</h2>
+        <h2 style="color:#085041">Thanks, ${esc(claimantName)}!</h2>
         <p style="font-size:14px;color:#444;line-height:1.6">
-          We've received your registration for <strong>${businessName}</strong> on Twncryr.
+          We've received your registration for <strong>${esc(businessName)}</strong> on Twncryr.
           We typically review and approve within a few hours — we'll email you here as soon as you're live.
         </p>
         <p style="font-size:13px;color:#999;margin-top:24px">

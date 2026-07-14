@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { requireTown } from '@/lib/town'
 import { prisma } from '@/lib/prisma'
+import { BusinessCategory } from '@prisma/client'
+import { z } from 'zod'
 import {
   ForkKnife, ShoppingBag, Heart, Briefcase, Palette, Bed, Barbell,
   GraduationCap, Storefront, MagnifyingGlass,
@@ -23,14 +25,19 @@ export default async function BusinessDirectoryPage({
 }: {
   searchParams: Promise<{ category?: string; q?: string }>
 }) {
-  const { category, q } = await searchParams
+  const { category: categoryParam, q } = await searchParams
   const town = await requireTown()
+
+  const categoryResult = categoryParam
+    ? z.nativeEnum(BusinessCategory).safeParse(categoryParam)
+    : null
+  const category = categoryResult?.data
 
   const businesses = await prisma.business.findMany({
     where: {
       townId: town.id,
       active: true,
-      ...(category ? { category: category as any } : {}),
+      ...(category ? { category } : {}),
       ...(q ? {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },

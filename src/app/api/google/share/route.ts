@@ -82,8 +82,8 @@ export async function POST(req: NextRequest) {
 
   if (!postRes.ok) {
     const errText = await postRes.text()
-    console.error('Google local post error:', errText)
-    return NextResponse.json({ error: 'Google API error', detail: errText }, { status: 502 })
+    console.error('[google/share] Google API error:', errText)
+    return NextResponse.json({ error: 'Failed to post to Google Business Profile' }, { status: 502 })
   }
 
   return NextResponse.json({ ok: true })

@@ -2,16 +2,31 @@ import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getResend } from '@/lib/resend'
+import { z } from 'zod'
+import { esc } from '@/lib/email'
+import { rateLimitIP } from '@/lib/ratelimit'
+
+const claimSchema = z.object({
+  businessId:    z.string().cuid(),
+  businessName:  z.string().min(1).max(120),
+  claimantName:  z.string().min(1).max(80),
+  claimantEmail: z.string().email(),
+  claimantRole:  z.string().max(60).optional(),
+  claimantPhone: z.string().max(20).optional(),
+})
 
 export async function POST(req: NextRequest) {
+  if (!rateLimitIP(req, 5, 60_000))
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-  const { businessId, businessName, claimantName, claimantEmail, claimantRole, claimantPhone } = await req.json()
+  const parsed = claimSchema.safeParse(await req.json())
+  if (!parsed.success)
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
-  if (!businessId || !claimantName || !claimantEmail) {
-    return NextResponse.json({ error: 'businessId, claimantName and claimantEmail are required' }, { status: 400 })
-  }
+  const { businessId, businessName, claimantName, claimantEmail, claimantRole, claimantPhone } = parsed.data
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
@@ -52,13 +67,13 @@ export async function POST(req: NextRequest) {
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
         <h2 style="color:#085041">New listing claim</h2>
         <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
-          <tr><td style="padding:8px 0;color:#666;font-size:13px;width:120px">Business</td><td style="padding:8px 0;font-size:13px;font-weight:500">${businessName}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;font-size:13px">Town</td><td style="padding:8px 0;font-size:13px">${business.town.name}, ${business.town.county}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;font-size:13px">Address</td><td style="padding:8px 0;font-size:13px">${business.address ?? '—'}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;font-size:13px;border-top:1px solid #eee">Claimant</td><td style="padding:8px 0;font-size:13px;border-top:1px solid #eee">${claimantName}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;font-size:13px">Email</td><td style="padding:8px 0;font-size:13px"><a href="mailto:${claimantEmail}">${claimantEmail}</a></td></tr>
-          <tr><td style="padding:8px 0;color:#666;font-size:13px">Role</td><td style="padding:8px 0;font-size:13px">${claimantRole ?? '—'}</td></tr>
-          <tr><td style="padding:8px 0;color:#666;font-size:13px">Phone</td><td style="padding:8px 0;font-size:13px">${claimantPhone ?? '—'}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px;width:120px">Business</td><td style="padding:8px 0;font-size:13px;font-weight:500">${esc(businessName)}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px">Town</td><td style="padding:8px 0;font-size:13px">${esc(business.town.name)}, ${esc(business.town.county)}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px">Address</td><td style="padding:8px 0;font-size:13px">${esc(business.address)}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px;border-top:1px solid #eee">Claimant</td><td style="padding:8px 0;font-size:13px;border-top:1px solid #eee">${esc(claimantName)}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px">Email</td><td style="padding:8px 0;font-size:13px"><a href="mailto:${esc(claimantEmail)}">${esc(claimantEmail)}</a></td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px">Role</td><td style="padding:8px 0;font-size:13px">${esc(claimantRole)}</td></tr>
+          <tr><td style="padding:8px 0;color:#666;font-size:13px">Phone</td><td style="padding:8px 0;font-size:13px">${esc(claimantPhone)}</td></tr>
         </table>
         <a href="${adminUrl}" style="background:#085041;color:#E1F5EE;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;display:inline-block">Review claim →</a>
         <p style="font-size:12px;color:#999;margin-top:24px">Sign in at <a href="${adminUrl}">${adminUrl}</a> to approve or reject.</p>
@@ -72,8 +87,8 @@ export async function POST(req: NextRequest) {
     subject: `We've received your claim — ${businessName}`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#085041">Thanks, ${claimantName}!</h2>
-        <p style="font-size:14px;color:#444;line-height:1.6">We've received your request to manage <strong>${businessName}</strong> on Twncryr. We typically approve within a few hours and will email you here when done.</p>
+        <h2 style="color:#085041">Thanks, ${esc(claimantName)}!</h2>
+        <p style="font-size:14px;color:#444;line-height:1.6">We've received your request to manage <strong>${esc(businessName)}</strong> on Twncryr. We typically approve within a few hours and will email you here when done.</p>
         <p style="font-size:13px;color:#999;margin-top:24px">Questions? Reply to this email or reach us at ignistech999@gmail.com</p>
       </div>
     `,

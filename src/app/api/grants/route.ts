@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { rateLimitOrg } from '@/lib/ratelimit'
 
 const grantsSchema = z.object({
   rateableValue: z.string().max(20),
@@ -54,6 +55,7 @@ Do not include preamble or conclusions outside the structured response.`
 export async function POST(req: NextRequest) {
   const { orgId } = await auth()
   if (!orgId) return new Response('Unauthorised', { status: 401 })
+  if (!rateLimitOrg(orgId, 10, 60_000)) return new Response('Too many requests', { status: 429 })
 
   const business = await prisma.business.findUnique({
     where: { clerkOrgId: orgId },

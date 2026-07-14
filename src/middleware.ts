@@ -2,6 +2,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 const isDashboardRoute = createRouteMatcher(['/dashboard(.*)'])
+const isAdminRoute = createRouteMatcher(['/admin(.*)'])
 const isOnboardingRoute = createRouteMatcher(['/onboarding(.*)'])
 const isApiRoute = createRouteMatcher(['/api(.*)'])
 
@@ -42,13 +43,15 @@ export default clerkMiddleware(async (auth, req) => {
 
   const { userId, orgId } = await auth()
 
-  if (isDashboardRoute(req)) {
+  if (isAdminRoute(req) || isDashboardRoute(req)) {
     if (!userId) {
       const signInUrl = new URL('/sign-in', req.url)
       signInUrl.searchParams.set('redirect_url', req.url)
       return NextResponse.redirect(signInUrl)
     }
+  }
 
+  if (isDashboardRoute(req)) {
     if (!orgId && !isOnboardingRoute(req)) {
       return NextResponse.redirect(new URL('/onboarding', req.url))
     }
